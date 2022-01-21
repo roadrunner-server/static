@@ -96,7 +96,7 @@ func (s *Plugin) Name() string {
 }
 
 // Middleware must return true if request/response pair is handled within the middleware.
-func (s *Plugin) Middleware(next http.Handler) http.Handler {
+func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit
 	// Define the http.HandlerFunc
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// do not allow paths like ../../resource
