@@ -12,12 +12,14 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/roadrunner-server/api/v2 v2.13.0 h1:ZR2qQj6K+YqiBETJh6Xku4lELlSYz/B4Ze5e6ztlVx8=
 github.com/roadrunner-server/api/v2 v2.13.0/go.mod h1:9G+q/c2yxV3MFv47MLw1dwggDG1AsSyxYaMuQ8BQugo=
+github.com/roadrunner-server/api/v2 v2.14.0 h1:U7CrMXv5h8qlO9vvqdvPDK0g+zMLwcERUAPcoLy6tYs=
+github.com/roadrunner-server/api/v2 v2.14.0/go.mod h1:COjb3T7DYHydaKIfino/N8gVa8op1jGAXFF+qKHMnk0=
 github.com/roadrunner-server/errors v1.1.2 h1:+LPw9Akgg+8LAGM4wASMWLAoBIbyP+mhNfR+FBS2Slw=
 github.com/roadrunner-server/errors v1.1.2/go.mod h1:jVSh32nFtRMzKItYUM9W2CTLLpXAM8HseL2lUENPYtU=
 github.com/roadrunner-server/sdk/v2 v2.11.1 h1:r5/ztyfEtsfymAjVynsgv5IZi5hJPrgUFA1hH4YoDVY=
 github.com/roadrunner-server/sdk/v2 v2.11.1/go.mod h1:mzKZdxTKLD4Hr0+JK7izkESchUOew+olTAFfi5zexqc=
-github.com/roadrunner-server/tcplisten v1.1.1 h1:uVJVdg/zaasD2A4Mg+GyMlsUy2nLp9ADKec/REzql9Y=
-github.com/roadrunner-server/tcplisten v1.1.1/go.mod h1:2MjzsggdgxCca4p2k3YJdWdo/QnQehiOTy0knlE226c=
+github.com/roadrunner-server/sdk/v2 v2.12.0 h1:O2uN0ufBQ/ftpoXYW9k/w9JZW8+01JvSQXpqsZ69xPo=
+github.com/roadrunner-server/sdk/v2 v2.12.0/go.mod h1:SPBLc4g9i9qpQ71dXTeaRXpfNgKjtCSwEk/dc1bXg+s=
 github.com/roadrunner-server/tcplisten v1.1.2 h1:GBjKlSEbA67UB2y83rFWsQKqMQGyalhTN9Q9HCIMBC0=
 github.com/roadrunner-server/tcplisten v1.1.2/go.mod h1:wN2/X46Vo60sC9L5Bf/eC8kL+X3//7KIFmANEXZaLsg=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
