@@ -8,6 +8,8 @@ import (
 
 	"github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/errors"
+	"github.com/roadrunner-server/sdk/v2/utils"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -96,9 +98,15 @@ func (s *Plugin) Name() string {
 }
 
 // Middleware must return true if request/response pair is handled within the middleware.
-func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit
+func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,gocyclo
 	// Define the http.HandlerFunc
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if val, ok := r.Context().Value(utils.OtelTracerNameKey).(string); ok {
+			tp := trace.SpanFromContext(r.Context()).TracerProvider()
+			ctx, span := tp.Tracer(val).Start(r.Context(), PluginName)
+			defer span.End()
+			r = r.WithContext(ctx)
+		}
 		// do not allow paths like ../../resource
 		// only specified folder and resources in it
 		// https://lgtm.com/rules/1510366186013/
