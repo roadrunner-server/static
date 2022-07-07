@@ -9,6 +9,10 @@ import (
 	"github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v2/utils"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
+	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.10.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
@@ -33,6 +37,9 @@ type Plugin struct {
 
 	// file extensions which are forbidden to be served
 	forbiddenExtensions map[string]struct{}
+
+	// opentelemetry
+	prop propagation.TextMapPropagator
 }
 
 // Init must return configure service and return true if service hasStatus enabled. Must return error in case of
@@ -89,6 +96,8 @@ func (s *Plugin) Init(cfg config.Configurer, log *zap.Logger) error {
 		delete(s.allowedExtensions, k)
 	}
 
+	s.prop = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
+
 	// at this point we have distinct allowed and forbidden hashmaps, also with alwaysServed
 	return nil
 }
@@ -103,10 +112,16 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if val, ok := r.Context().Value(utils.OtelTracerNameKey).(string); ok {
 			tp := trace.SpanFromContext(r.Context()).TracerProvider()
-			ctx, span := tp.Tracer(val).Start(r.Context(), PluginName)
+			ctx, span := tp.Tracer(val, trace.WithSchemaURL(semconv.SchemaURL),
+				trace.WithInstrumentationVersion(otelhttp.SemVersion())).
+				Start(r.Context(), PluginName, trace.WithSpanKind(trace.SpanKindServer))
 			defer span.End()
+
+			// inject
+			s.prop.Inject(ctx, propagation.HeaderCarrier(r.Header))
 			r = r.WithContext(ctx)
 		}
+
 		// do not allow paths like ../../resource
 		// only specified folder and resources in it
 		// https://lgtm.com/rules/1510366186013/
