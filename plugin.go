@@ -6,9 +6,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v2/utils"
+	"github.com/roadrunner-server/sdk/v3/utils"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel/propagation"
@@ -18,9 +17,18 @@ import (
 )
 
 // PluginName contains default service name.
-const PluginName = "static"
+const (
+	PluginName     = "static"
+	RootPluginName = "http"
+)
 
-const RootPluginName = "http"
+type Configurer interface {
+	// UnmarshalKey takes a single key and unmarshal it into a Struct.
+	UnmarshalKey(name string, out any) error
+
+	// Has checks if config section exists.
+	Has(name string) bool
+}
 
 // Plugin serves static files. Potentially convert into middleware?
 type Plugin struct {
@@ -44,7 +52,7 @@ type Plugin struct {
 
 // Init must return configure service and return true if service hasStatus enabled. Must return error in case of
 // misconfiguration. Services must not be used without proper configuration pushed first.
-func (s *Plugin) Init(cfg config.Configurer, log *zap.Logger) error {
+func (s *Plugin) Init(cfg Configurer, log *zap.Logger) error {
 	const op = errors.Op("static_plugin_init")
 	if !cfg.Has(RootPluginName) {
 		return errors.E(op, errors.Disabled)
