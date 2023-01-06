@@ -25,9 +25,12 @@ const (
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
 	UnmarshalKey(name string, out any) error
-
 	// Has checks if config section exists.
 	Has(name string) bool
+}
+
+type Logger interface {
+	NamedLogger(name string) *zap.Logger
 }
 
 // Plugin serves static files. Potentially convert into middleware?
@@ -52,7 +55,7 @@ type Plugin struct {
 
 // Init must return configure service and return true if service hasStatus enabled. Must return error in case of
 // misconfiguration. Services must not be used without proper configuration pushed first.
-func (s *Plugin) Init(cfg Configurer, log *zap.Logger) error {
+func (s *Plugin) Init(cfg Configurer, log Logger) error {
 	const op = errors.Op("static_plugin_init")
 	if !cfg.Has(RootPluginName) {
 		return errors.E(op, errors.Disabled)
@@ -77,7 +80,7 @@ func (s *Plugin) Init(cfg Configurer, log *zap.Logger) error {
 	s.allowedExtensions = make(map[string]struct{}, len(s.cfg.Allow))
 	s.forbiddenExtensions = make(map[string]struct{}, len(s.cfg.Forbid))
 
-	s.log = log
+	s.log = log.NamedLogger(PluginName)
 	s.root = http.Dir(s.cfg.Dir)
 
 	// init forbidden
