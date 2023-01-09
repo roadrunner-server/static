@@ -1,2 +1,1 @@
-# static
-RRv2 HTTP static files middleware
+# Docs: [link](https://roadrunner.dev/docs/middleware-static/2.x/en)
