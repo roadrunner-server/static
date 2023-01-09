@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v3/utils"
+	"github.com/roadrunner-server/sdk/v4/utils"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel/propagation"
