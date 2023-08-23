@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"unsafe"
 
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/sdk/v4/utils"
@@ -37,18 +38,14 @@ type Logger interface {
 type Plugin struct {
 	// server configuration (location, forbidden files and etc)
 	cfg *Config
-
 	log *zap.Logger
 
 	// root is initiated http directory
 	root http.Dir
-
 	// file extensions which are allowed to be served
 	allowedExtensions map[string]struct{}
-
 	// file extensions which are forbidden to be served
 	forbiddenExtensions map[string]struct{}
-
 	// opentelemetry
 	prop propagation.TextMapPropagator
 }
@@ -231,4 +228,20 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		// we passed all checks - serve the file
 		http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
 	})
+}
+
+func bytesToStr(data []byte) string {
+	if len(data) == 0 {
+		return ""
+	}
+
+	return unsafe.String(unsafe.SliceData(data), len(data))
+}
+
+func strToBytes(data string) []byte {
+	if data == "" {
+		return nil
+	}
+
+	return unsafe.Slice(unsafe.StringData(data), len(data))
 }
