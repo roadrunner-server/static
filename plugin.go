@@ -36,7 +36,7 @@ type Logger interface {
 
 // Plugin serves static files. Potentially convert into middleware?
 type Plugin struct {
-	// server configuration (location, forbidden files and etc)
+	// server configuration (location, forbidden files etc)
 	cfg *Config
 	log *zap.Logger
 
@@ -50,7 +50,7 @@ type Plugin struct {
 	prop propagation.TextMapPropagator
 }
 
-// Init must return configure service and return true if service hasStatus enabled. Must return error in case of
+// Init must return configure service and return true if the service hasStatus enabled. Must return error in case of
 // misconfiguration. Services must not be used without proper configuration pushed first.
 func (s *Plugin) Init(cfg Configurer, log Logger) error {
 	const op = errors.Op("static_plugin_init")
@@ -130,7 +130,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 			r = r.WithContext(ctx)
 		}
 
-		// do not allow paths like ../../resource
+		// do not allow paths like '../../resource'
 		// only specified folder and resources in it
 		// https://lgtm.com/rules/1510366186013/
 		if strings.Contains(r.URL.Path, "..") {

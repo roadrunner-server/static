@@ -18,12 +18,12 @@ type Config struct {
 	// Weak etag `W/`
 	Weak bool `mapstructure:"weak"`
 
-	// forbid specifies list of file extensions which are forbidden for access.
-	// example: .php, .exe, .bat, .htaccess and etc.
+	// forbid specifies a list of file extensions which are forbidden for access.
+	// example: .php, .exe, .bat, .htaccess etc.
 	Forbid []string `mapstructure:"forbid"`
 
-	// Allow specifies list of file extensions which are allowed for access.
-	// example: .php, .exe, .bat, .htaccess and etc.
+	// Allow specifies a list of file extensions which are allowed for access.
+	// example: .php, .exe, .bat, .htaccess etc.
 	Allow []string `mapstructure:"allow"`
 
 	// Request headers to add to every static.
