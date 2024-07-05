@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unsafe"
 
+	rrcontext "github.com/roadrunner-server/context"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v4/utils"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel/propagation"
@@ -26,7 +26,7 @@ const (
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
 	UnmarshalKey(name string, out any) error
-	// Has checks if config section exists.
+	// Has checks if a config section exists.
 	Has(name string) bool
 }
 
@@ -114,11 +114,11 @@ func (s *Plugin) Name() string {
 	return PluginName
 }
 
-// Middleware must return true if request/response pair is handled within the middleware.
+// Middleware must return true if a request/response pair is handled within the middleware.
 func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,gocyclo
 	// Define the http.HandlerFunc
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if val, ok := r.Context().Value(utils.OtelTracerNameKey).(string); ok {
+		if val, ok := r.Context().Value(rrcontext.OtelTracerNameKey).(string); ok {
 			tp := trace.SpanFromContext(r.Context()).TracerProvider()
 			ctx, span := tp.Tracer(val, trace.WithSchemaURL(semconv.SchemaURL),
 				trace.WithInstrumentationVersion(otelhttp.Version())).
