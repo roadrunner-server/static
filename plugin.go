@@ -105,13 +105,13 @@ type ScannedFile struct {
 	etag    string
 }
 
-func createImmutableServer(s *Plugin) FileServer {
+func createImmutableServer(s *Plugin) (FileServer, error) {
 	var files map[string]ScannedFile
 
 	var scanner func(path string, info os.FileInfo, err error) error
 	scanner = func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if info.IsDir() {
@@ -121,7 +121,7 @@ func createImmutableServer(s *Plugin) FileServer {
 		file, openError := s.root.Open(path)
 
 		if openError != nil {
-			panic(openError)
+			return openError
 		}
 
 		var etag string
@@ -143,7 +143,7 @@ func createImmutableServer(s *Plugin) FileServer {
 	err := filepath.Walk(s.cfg.Dir, scanner)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return func(s *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request, fp string) {
@@ -175,7 +175,7 @@ func createImmutableServer(s *Plugin) FileServer {
 
 		// we passed all checks - serve the file
 		http.ServeContent(w, r, file.name, file.modTime, file.file)
-	}
+	}, nil
 }
 
 // Plugin serves static files. Potentially convert into middleware?
@@ -263,7 +263,12 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler {
 	var server FileServer = server
 
 	if s.cfg.Immutable {
-		server = createImmutableServer(s)
+		immutableServer, err := createImmutableServer(s)
+		if err != nil {
+			panic(err)
+		}
+
+		server = immutableServer
 	}
 
 	// Define the http.HandlerFunc
