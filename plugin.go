@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 	"unsafe"
@@ -98,19 +99,52 @@ func server(s *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request
 }
 
 type ScannedFile struct {
-	file    *os.File
+	file    http.File
 	name    string
 	modTime time.Time
 	etag    string
 }
 
-func createImmutableServer(rootDir http.Dir) FileServer {
-	// HOW TO SCAN files ?!
-	var files map[string]*ScannedFile
+func createImmutableServer(s *Plugin) FileServer {
+	var files map[string]ScannedFile
+
+	var scanner func(path string, info os.FileInfo, err error) error
+	scanner = func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return filepath.Walk(info.Name(), scanner)
+		}
+
+		file, err := s.root.Open(path)
+
+		if err != nil {
+			panic(err)
+		}
+
+		var etag string = ""
+
+		if s.cfg.CalculateEtag {
+			etag = calculateEtag(s.cfg.Weak, file, info.Name())
+		}
+
+		files[path] = ScannedFile{
+			file:    file,
+			modTime: info.ModTime(),
+			name:    info.Name(),
+			etag:    etag,
+		}
+
+		return nil
+	}
+
+	err := filepath.Walk(s.cfg.Dir, scanner)
+
+	if err != nil {
+		panic(err)
+	}
 
 	return func(s *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request, fp string) {
-		var file = files[fp]
-		if file == nil {
+		file, ok := files[fp]
+		if ok {
 			// else no such file, show error in logs only in debug mode
 			s.log.Debug("no such file or directory")
 			// pass request to the worker
@@ -225,7 +259,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 	var server FileServer = server
 
 	if s.cfg.Immutable {
-		server = createImmutableServer(s.root)
+		server = createImmutableServer(s)
 	}
 
 	// Define the http.HandlerFunc
