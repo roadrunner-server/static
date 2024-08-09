@@ -3,8 +3,10 @@ package static
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"strings"
+	"time"
 	"unsafe"
 
 	rrcontext "github.com/roadrunner-server/context"
@@ -95,41 +97,21 @@ func server(s *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request
 	http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
 }
 
+type ScannedFile struct {
+	file    *os.File
+	name    string
+	modTime time.Time
+}
+
 func createImmutableServer(rootDir http.Dir) FileServer {
 	// HOW TO SCAN files ?!
+	var files map[string]*ScannedFile
 
 	return func(s *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request, fp string) {
-		// Stat it and get file info
-		f, err := s.root.Open(fp)
-		if err != nil {
+		var file = files[fp]
+		if file == nil {
 			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
-			// pass request to the worker
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// at high confidence here should not be an error
-		// because we stat-ed the path previously and know, that that is file (not a dir), and it exists
-		finfo, err := f.Stat()
-		if err != nil {
-			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
-			// pass request to the worker
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		defer func() {
-			err = f.Close()
-			if err != nil {
-				s.log.Error("file close error", zap.Error(err))
-			}
-		}()
-
-		// if provided path to the dir, do not serve the dir, but pass the request to the worker
-		if finfo.IsDir() {
-			s.log.Debug("possible path to dir provided")
+			s.log.Debug("no such file or directory")
 			// pass request to the worker
 			next.ServeHTTP(w, r)
 			return
@@ -137,7 +119,7 @@ func createImmutableServer(rootDir http.Dir) FileServer {
 
 		// set etag
 		if s.cfg.CalculateEtag {
-			SetEtag(s.cfg.Weak, f, finfo.Name(), w)
+			SetEtag(s.cfg.Weak, file.file, file.name, w)
 		}
 
 		if s.cfg.Request != nil {
@@ -153,7 +135,7 @@ func createImmutableServer(rootDir http.Dir) FileServer {
 		}
 
 		// we passed all checks - serve the file
-		http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
+		http.ServeContent(w, r, file.name, file.modTime, file.file)
 	}
 }
 
