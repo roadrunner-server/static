@@ -78,7 +78,7 @@ func server(s *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request
 
 	// set etag
 	if s.cfg.CalculateEtag {
-		SetEtag(s.cfg.Weak, f, finfo.Name(), w)
+		SetEtag(w, calculateEtag(s.cfg.Weak, f, finfo.Name()))
 	}
 
 	if s.cfg.Request != nil {
@@ -101,6 +101,7 @@ type ScannedFile struct {
 	file    *os.File
 	name    string
 	modTime time.Time
+	etag    []byte
 }
 
 func createImmutableServer(rootDir http.Dir) FileServer {
@@ -118,8 +119,8 @@ func createImmutableServer(rootDir http.Dir) FileServer {
 		}
 
 		// set etag
-		if s.cfg.CalculateEtag {
-			SetEtag(s.cfg.Weak, file.file, file.name, w)
+		if file.etag != nil {
+			SetEtag(w, file.etag)
 		}
 
 		if s.cfg.Request != nil {
