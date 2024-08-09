@@ -34,6 +34,129 @@ type Logger interface {
 	NamedLogger(name string) *zap.Logger
 }
 
+type FileServer func(ps *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request, fp string)
+
+func server(s *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request, fp string) {
+	// ok, file is not in the forbidden list
+	// Stat it and get file info
+	f, err := s.root.Open(fp)
+	if err != nil {
+		// else no such file, show error in logs only in debug mode
+		s.log.Debug("no such file or directory", zap.Error(err))
+		// pass request to the worker
+		next.ServeHTTP(w, r)
+		return
+	}
+
+	// at high confidence here should not be an error
+	// because we stat-ed the path previously and know, that that is file (not a dir), and it exists
+	finfo, err := f.Stat()
+	if err != nil {
+		// else no such file, show error in logs only in debug mode
+		s.log.Debug("no such file or directory", zap.Error(err))
+		// pass request to the worker
+		next.ServeHTTP(w, r)
+		return
+	}
+
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			s.log.Error("file close error", zap.Error(err))
+		}
+	}()
+
+	// if provided path to the dir, do not serve the dir, but pass the request to the worker
+	if finfo.IsDir() {
+		s.log.Debug("possible path to dir provided")
+		// pass request to the worker
+		next.ServeHTTP(w, r)
+		return
+	}
+
+	// set etag
+	if s.cfg.CalculateEtag {
+		SetEtag(s.cfg.Weak, f, finfo.Name(), w)
+	}
+
+	if s.cfg.Request != nil {
+		for k, v := range s.cfg.Request {
+			r.Header.Add(k, v)
+		}
+	}
+
+	if s.cfg.Response != nil {
+		for k, v := range s.cfg.Response {
+			w.Header().Set(k, v)
+		}
+	}
+
+	// we passed all checks - serve the file
+	http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
+}
+
+func createImmutableServer(rootDir http.Dir) FileServer {
+	// HOW TO SCAN files ?!
+
+	return func(s *Plugin, next http.Handler, w http.ResponseWriter, r *http.Request, fp string) {
+		// Stat it and get file info
+		f, err := s.root.Open(fp)
+		if err != nil {
+			// else no such file, show error in logs only in debug mode
+			s.log.Debug("no such file or directory", zap.Error(err))
+			// pass request to the worker
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// at high confidence here should not be an error
+		// because we stat-ed the path previously and know, that that is file (not a dir), and it exists
+		finfo, err := f.Stat()
+		if err != nil {
+			// else no such file, show error in logs only in debug mode
+			s.log.Debug("no such file or directory", zap.Error(err))
+			// pass request to the worker
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		defer func() {
+			err = f.Close()
+			if err != nil {
+				s.log.Error("file close error", zap.Error(err))
+			}
+		}()
+
+		// if provided path to the dir, do not serve the dir, but pass the request to the worker
+		if finfo.IsDir() {
+			s.log.Debug("possible path to dir provided")
+			// pass request to the worker
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// set etag
+		if s.cfg.CalculateEtag {
+			SetEtag(s.cfg.Weak, f, finfo.Name(), w)
+		}
+
+		if s.cfg.Request != nil {
+			for k, v := range s.cfg.Request {
+				r.Header.Add(k, v)
+			}
+		}
+
+		if s.cfg.Response != nil {
+			for k, v := range s.cfg.Response {
+				w.Header().Set(k, v)
+			}
+		}
+
+		// we passed all checks - serve the file
+		http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
+	}
+}
+
 // Plugin serves static files. Potentially convert into middleware?
 type Plugin struct {
 	// server configuration (location, forbidden files etc)
@@ -116,6 +239,12 @@ func (s *Plugin) Name() string {
 
 // Middleware must return true if a request/response pair is handled within the middleware.
 func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,gocyclo
+	var server FileServer = server
+
+	if s.cfg.Immutable {
+		server = createImmutableServer(s.root)
+	}
+
 	// Define the http.HandlerFunc
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if val, ok := r.Context().Value(rrcontext.OtelTracerNameKey).(string); ok {
@@ -170,63 +299,9 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 
 			// file extension allowed
 		}
-
 		// ok, file is not in the forbidden list
-		// Stat it and get file info
-		f, err := s.root.Open(fp)
-		if err != nil {
-			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
-			// pass request to the worker
-			next.ServeHTTP(w, r)
-			return
-		}
 
-		// at high confidence here should not be an error
-		// because we stat-ed the path previously and know, that that is file (not a dir), and it exists
-		finfo, err := f.Stat()
-		if err != nil {
-			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
-			// pass request to the worker
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		defer func() {
-			err = f.Close()
-			if err != nil {
-				s.log.Error("file close error", zap.Error(err))
-			}
-		}()
-
-		// if provided path to the dir, do not serve the dir, but pass the request to the worker
-		if finfo.IsDir() {
-			s.log.Debug("possible path to dir provided")
-			// pass request to the worker
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// set etag
-		if s.cfg.CalculateEtag {
-			SetEtag(s.cfg.Weak, f, finfo.Name(), w)
-		}
-
-		if s.cfg.Request != nil {
-			for k, v := range s.cfg.Request {
-				r.Header.Add(k, v)
-			}
-		}
-
-		if s.cfg.Response != nil {
-			for k, v := range s.cfg.Response {
-				w.Header().Set(k, v)
-			}
-		}
-
-		// we passed all checks - serve the file
-		http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
+		server(s, next, w, r, fp)
 	})
 }
 

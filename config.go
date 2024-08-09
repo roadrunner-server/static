@@ -18,6 +18,8 @@ type Config struct {
 	// Weak etag `W/`
 	Weak bool `mapstructure:"weak"`
 
+	Immutable bool `mapstructure:"immutable"`
+
 	// forbid specifies a list of file extensions which are forbidden for access.
 	// example: .php, .exe, .bat, .htaccess etc.
 	Forbid []string `mapstructure:"forbid"`
