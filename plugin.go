@@ -101,7 +101,7 @@ type ScannedFile struct {
 	file    *os.File
 	name    string
 	modTime time.Time
-	etag    []byte
+	etag    string
 }
 
 func createImmutableServer(rootDir http.Dir) FileServer {
@@ -119,7 +119,7 @@ func createImmutableServer(rootDir http.Dir) FileServer {
 		}
 
 		// set etag
-		if file.etag != nil {
+		if file.etag != "" {
 			SetEtag(w, file.etag)
 		}
 
