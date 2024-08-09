@@ -39,14 +39,14 @@ type Logger interface {
 
 type FileServer func(next http.Handler, w http.ResponseWriter, r *http.Request, fp string)
 
-func createMutableServer(s *Plugin) FileServer {
+func createMutableServer(root http.Dir, cfg *Config, logger *zap.Logger) FileServer {
 	return func(next http.Handler, w http.ResponseWriter, r *http.Request, fp string) {
 		// ok, file is not in the forbidden list
 		// Stat it and get file info
-		f, err := s.root.Open(fp)
+		f, err := root.Open(fp)
 		if err != nil {
 			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
+			logger.Debug("no such file or directory", zap.Error(err))
 			// pass request to the worker
 			next.ServeHTTP(w, r)
 			return
@@ -57,7 +57,7 @@ func createMutableServer(s *Plugin) FileServer {
 		finfo, err := f.Stat()
 		if err != nil {
 			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
+			logger.Debug("no such file or directory", zap.Error(err))
 			// pass request to the worker
 			next.ServeHTTP(w, r)
 			return
@@ -66,31 +66,31 @@ func createMutableServer(s *Plugin) FileServer {
 		defer func() {
 			err = f.Close()
 			if err != nil {
-				s.log.Error("file close error", zap.Error(err))
+				logger.Error("file close error", zap.Error(err))
 			}
 		}()
 
 		// if provided path to the dir, do not serve the dir, but pass the request to the worker
 		if finfo.IsDir() {
-			s.log.Debug("possible path to dir provided")
+			logger.Debug("possible path to dir provided")
 			// pass request to the worker
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		// set etag
-		if s.cfg.CalculateEtag {
-			SetEtag(w, calculateEtag(s.cfg.Weak, f, finfo.Name()))
+		if cfg.CalculateEtag {
+			SetEtag(w, calculateEtag(cfg.Weak, f, finfo.Name()))
 		}
 
-		if s.cfg.Request != nil {
-			for k, v := range s.cfg.Request {
+		if cfg.Request != nil {
+			for k, v := range cfg.Request {
 				r.Header.Add(k, v)
 			}
 		}
 
-		if s.cfg.Response != nil {
-			for k, v := range s.cfg.Response {
+		if cfg.Response != nil {
+			for k, v := range cfg.Response {
 				w.Header().Set(k, v)
 			}
 		}
@@ -107,7 +107,7 @@ type ScannedFile struct {
 	etag    string
 }
 
-func createImmutableServer(s *Plugin) (FileServer, error) {
+func createImmutableServer(root http.Dir, cfg *Config, logger *zap.Logger) (FileServer, error) {
 	var files map[string]ScannedFile
 
 	var scanner func(path string, info os.FileInfo, err error) error
@@ -120,7 +120,7 @@ func createImmutableServer(s *Plugin) (FileServer, error) {
 			return filepath.Walk(info.Name(), scanner)
 		}
 
-		file, openError := s.root.Open(path)
+		file, openError := root.Open(path)
 
 		if openError != nil {
 			return openError
@@ -128,8 +128,8 @@ func createImmutableServer(s *Plugin) (FileServer, error) {
 
 		var etag string
 
-		if s.cfg.CalculateEtag {
-			etag = calculateEtag(s.cfg.Weak, file, info.Name())
+		if cfg.CalculateEtag {
+			etag = calculateEtag(cfg.Weak, file, info.Name())
 		}
 
 		files[path] = ScannedFile{
@@ -142,7 +142,7 @@ func createImmutableServer(s *Plugin) (FileServer, error) {
 		return nil
 	}
 
-	err := filepath.Walk(s.cfg.Dir, scanner)
+	err := filepath.Walk(string(root), scanner)
 
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func createImmutableServer(s *Plugin) (FileServer, error) {
 		file, ok := files[fp]
 		if ok {
 			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory")
+			logger.Debug("no such file or directory")
 			// pass request to the worker
 			next.ServeHTTP(w, r)
 			return
@@ -163,14 +163,14 @@ func createImmutableServer(s *Plugin) (FileServer, error) {
 			SetEtag(w, file.etag)
 		}
 
-		if s.cfg.Request != nil {
-			for k, v := range s.cfg.Request {
+		if cfg.Request != nil {
+			for k, v := range cfg.Request {
 				r.Header.Add(k, v)
 			}
 		}
 
-		if s.cfg.Response != nil {
-			for k, v := range s.cfg.Response {
+		if cfg.Response != nil {
+			for k, v := range cfg.Response {
 				w.Header().Set(k, v)
 			}
 		}
@@ -257,14 +257,14 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 	var server FileServer
 
 	if s.cfg.Immutable {
-		immutableServer, err := createImmutableServer(s)
+		immutableServer, err := createImmutableServer(s.root, s.cfg, s.log)
 		if err != nil {
 			return errors.E(op, err)
 		}
 
 		server = immutableServer
 	} else {
-		server = createMutableServer(s)
+		server = createMutableServer(s.root, s.cfg, s.log)
 	}
 
 	s.fileServer = server
