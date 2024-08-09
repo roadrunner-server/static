@@ -110,17 +110,21 @@ func createImmutableServer(s *Plugin) FileServer {
 
 	var scanner func(path string, info os.FileInfo, err error) error
 	scanner = func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			return filepath.Walk(info.Name(), scanner)
-		}
-
-		file, err := s.root.Open(path)
-
 		if err != nil {
 			panic(err)
 		}
 
-		var etag string = ""
+		if info.IsDir() {
+			return filepath.Walk(info.Name(), scanner)
+		}
+
+		file, openError := s.root.Open(path)
+
+		if openError != nil {
+			panic(openError)
+		}
+
+		var etag string
 
 		if s.cfg.CalculateEtag {
 			etag = calculateEtag(s.cfg.Weak, file, info.Name())
@@ -255,7 +259,7 @@ func (s *Plugin) Name() string {
 }
 
 // Middleware must return true if a request/response pair is handled within the middleware.
-func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,gocyclo
+func (s *Plugin) Middleware(next http.Handler) http.Handler {
 	var server FileServer = server
 
 	if s.cfg.Immutable {
