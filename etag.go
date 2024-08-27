@@ -42,7 +42,7 @@ func SetEtag(weak bool, f http.File, name string, w http.ResponseWriter) {
 	}
 
 	calculatedEtag = append(calculatedEtag, '"')
-	calculatedEtag = appendUint(calculatedEtag, uint32(len(body)))
+	calculatedEtag = appendUint(calculatedEtag, uint32(len(body))) //nolint:gosec
 	calculatedEtag = append(calculatedEtag, '-')
 	calculatedEtag = appendUint(calculatedEtag, crc32.Checksum(body, crc32q))
 	calculatedEtag = append(calculatedEtag, '"')
