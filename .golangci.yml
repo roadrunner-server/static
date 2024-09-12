@@ -7,8 +7,6 @@ run:
 linters-settings:
   wsl:
     allow-assign-and-anything: true
-  golint:
-    min-confidence: 0.1
   gocyclo:
     min-complexity: 15
   godot:
@@ -28,7 +26,6 @@ linters-settings:
     range-loops: true
     for-loops: true
   nolintlint:
-    allow-leading-space: false
     require-specific: true
 
 linters: # All available linters list: <https://golangci-lint.run/usage/linters/>
@@ -40,7 +37,7 @@ linters: # All available linters list: <https://golangci-lint.run/usage/linters/
     - errcheck # Errcheck is a program for checking for unchecked errors in go programs. These unchecked errors can be critical bugs in some cases
     - errorlint # find code that will cause problems with the error wrapping scheme introduced in Go 1.13
     - exhaustive # check exhaustiveness of enum switch statements
-    - exportloopref # checks for pointers to enclosing loop variables
+    - copyloopvar # Checks for variables that are used in a loop closure and should be copied
     - gochecknoglobals # Checks that no globals are present in Go code
     - gochecknoinits # Checks that no init functions are present in Go code
     - gocognit # Computes and checks the cognitive complexity of functions
