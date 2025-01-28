@@ -31,6 +31,8 @@ type Config struct {
 
 	// Response headers to add to every static.
 	Response map[string]string `mapstructure:"response"`
+
+	Gzip bool `mapstructure:"gzip"`
 }
 
 // Valid returns nil if config is valid.

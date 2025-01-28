@@ -1,10 +1,14 @@
 package static
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"path"
 	"strings"
+	"sync"
 	"unsafe"
 
 	rrcontext "github.com/roadrunner-server/context"
@@ -22,6 +26,8 @@ const (
 	PluginName     = "static"
 	RootPluginName = "http"
 )
+
+var cacheMutex sync.Mutex
 
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
@@ -48,6 +54,8 @@ type Plugin struct {
 	forbiddenExtensions map[string]struct{}
 	// opentelemetry
 	prop propagation.TextMapPropagator
+
+	gzip bool
 }
 
 // Init must return configure service and return true if the service hasStatus enabled. Must return error in case of
@@ -79,6 +87,7 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 
 	s.log = log.NamedLogger(PluginName)
 	s.root = http.Dir(s.cfg.Dir)
+	s.gzip = s.cfg.Gzip
 
 	// init forbidden
 	for i := 0; i < len(s.cfg.Forbid); i++ {
@@ -225,9 +234,76 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 			}
 		}
 
+		if s.gzip && r.Header.Get("Accept-Encoding") == "gzip" {
+			s.log.Debug("gzip compression requested")
+			cf, err := s.compressContent(fp, f)
+			if err != nil {
+				s.log.Error("failed to compress content", zap.Error(err))
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+			err = f.Close()
+			if err != nil {
+				s.log.Error("failed to close file", zap.Error(err))
+			}
+			f = cf
+			// No new defer to close needed for cf. f is already closed, previous defer exist
+			w.Header().Set("Content-Encoding", "gzip")
+		}
+
 		// we passed all checks - serve the file
 		http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
 	})
+}
+
+func (s *Plugin) createCompressedFile(originalFile http.File, compressedPath string) error {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+
+	// We check again to avoid a race between threads.
+	if _, err := os.Stat(compressedPath); err == nil {
+		return nil
+	}
+	compressedFile, err := os.Create(s.cfg.Dir + compressedPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := compressedFile.Close()
+		if err != nil {
+			s.log.Error("failed to close file", zap.Error(err))
+		}
+	}()
+
+	gz := gzip.NewWriter(compressedFile)
+	defer func() {
+		err := gz.Close()
+		if err != nil {
+			s.log.Error("failed to close file", zap.Error(err))
+		}
+	}()
+
+	_, err = io.Copy(gz, originalFile)
+	return err
+}
+
+func (s *Plugin) compressContent(originalFilePath string, originalFile http.File) (http.File, error) {
+	compressedFilePath := originalFilePath + ".gz"
+
+	if _, err := os.Stat(compressedFilePath); os.IsNotExist(err) {
+		if err := s.createCompressedFile(originalFile, compressedFilePath); err != nil {
+			s.log.Debug("Error creating compressed file: ", zap.Error(err))
+			return nil, err
+		}
+	}
+
+	compressedFile, err := s.root.Open(compressedFilePath)
+	if err != nil {
+		s.log.Debug("Unable to open compressed file: ", zap.Error(err))
+		return nil, err
+	}
+
+	return compressedFile, nil
 }
 
 func bytesToStr(data []byte) string {
