@@ -309,6 +309,7 @@ func (s *Plugin) createCompressedFile(originalFile http.File, compressedPath str
 		if err != nil {
 			s.log.Error("failed to close file", zap.Error(err))
 		}
+
 		err = gz.Close()
 		if err != nil {
 			s.log.Error("failed to close file", zap.Error(err))
@@ -325,13 +326,16 @@ func (s *Plugin) createCompressedFile(originalFile http.File, compressedPath str
 }
 
 func (s *Plugin) compressContent(originalFilePath string, originalFile http.File) (http.File, error) {
-	compressedFilePath := originalFilePath + ".gz"
+	compressedFilePath := s.cfg.Dir + originalFilePath + ".gz"
 
 	if _, err := os.Stat(compressedFilePath); os.IsNotExist(err) {
+		s.log.Debug("Compressed file does not exist, creating it: ", zap.String("path", compressedFilePath))
 		if err := s.createCompressedFile(originalFile, compressedFilePath); err != nil {
 			s.log.Debug("Error creating compressed file: ", zap.Error(err))
 			return nil, err
 		}
+	} else {
+		s.log.Debug("GZ file already exists, skipping compression")
 	}
 
 	compressedFile, err := s.root.Open(compressedFilePath)
