@@ -2,6 +2,8 @@ package static
 
 import (
 	"fmt"
+	"github.com/klauspost/compress/gzhttp"
+	"io"
 	"net/http"
 	"path"
 	"strings"
@@ -48,6 +50,9 @@ type Plugin struct {
 	forbiddenExtensions map[string]struct{}
 	// opentelemetry
 	prop propagation.TextMapPropagator
+
+	// gzipEnabled indicates if gzip compression is enabled for serving static files.
+	gzipEnabled bool
 }
 
 // Init must return configure service and return true if the service hasStatus enabled. Must return error in case of
@@ -79,6 +84,7 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 
 	s.log = log.NamedLogger(PluginName)
 	s.root = http.Dir(s.cfg.Dir)
+	s.gzipEnabled = s.cfg.GzipEnabled
 
 	// init forbidden
 	for i := 0; i < len(s.cfg.Forbid); i++ {
@@ -222,6 +228,26 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		if s.cfg.Response != nil {
 			for k, v := range s.cfg.Response {
 				w.Header().Set(k, v)
+			}
+		}
+
+		if s.gzipEnabled && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			s.log.Debug("gzip compression requested")
+			// Skip compression for already compressed formats
+			contentType := http.DetectContentType(make([]byte, 512))
+			if strings.Contains(contentType, "image/") ||
+				strings.Contains(contentType, "video/") ||
+				strings.Contains(contentType, "audio/") {
+				s.log.Debug("skipping compression for already compressed content",
+					zap.String("type", contentType))
+			} else {
+				gzhttp.GzipHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					_, err := io.Copy(w, f)
+					if err != nil {
+						s.log.Error("failed to copy file to response: ", zap.Error(err))
+					}
+				})).ServeHTTP(w, r)
+				return
 			}
 		}
 
