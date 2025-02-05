@@ -34,9 +34,6 @@ type Config struct {
 
 	// GzipEnabled determines if gzip compression is enabled for serving static files.
 	GzipEnabled bool `mapstructure:"gzip_enabled"`
-
-	// GzipMaxFileSize specifies the maximum size (in MB) of a file eligible for gzip compression.
-	GzipMaxFileSize int `mapstructure:"max_size_compressed_file"`
 }
 
 // Valid returns nil if config is valid.
@@ -56,10 +53,4 @@ func (c *Config) Valid() error {
 	}
 
 	return nil
-}
-
-func (c *Config) InitDefaults() {
-	if c.GzipMaxFileSize == 0 {
-		c.GzipMaxFileSize = 10 // In MB
-	}
 }

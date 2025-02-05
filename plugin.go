@@ -1,14 +1,12 @@
 package static
 
 import (
-	"compress/gzip"
 	"fmt"
+	"github.com/klauspost/compress/gzhttp"
 	"io"
 	"net/http"
-	"os"
 	"path"
 	"strings"
-	"sync"
 	"unsafe"
 
 	rrcontext "github.com/roadrunner-server/context"
@@ -55,12 +53,6 @@ type Plugin struct {
 
 	// gzipEnabled indicates if gzip compression is enabled for serving static files.
 	gzipEnabled bool
-
-	// gzipMaxFileSize specifies the maximum file size (in bytes) eligible for gzip compression when serving static files.
-	gzipMaxFileSize int
-
-	// cacheMutex is used to ensure thread-safety when accessing or modifying caching-related operations.
-	cacheMutex sync.Mutex
 }
 
 // Init must return configure service and return true if the service hasStatus enabled. Must return error in case of
@@ -81,7 +73,6 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 		return errors.E(op, errors.Disabled, err)
 	}
 
-	s.cfg.InitDefaults()
 	err = s.cfg.Valid()
 	if err != nil {
 		return errors.E(op, err)
@@ -94,7 +85,6 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 	s.log = log.NamedLogger(PluginName)
 	s.root = http.Dir(s.cfg.Dir)
 	s.gzipEnabled = s.cfg.GzipEnabled
-	s.gzipMaxFileSize = s.cfg.GzipMaxFileSize
 
 	// init forbidden
 	for i := 0; i < len(s.cfg.Forbid); i++ {
@@ -250,101 +240,20 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 				strings.Contains(contentType, "audio/") {
 				s.log.Debug("skipping compression for already compressed content",
 					zap.String("type", contentType))
-				http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
+			} else {
+				gzhttp.GzipHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					_, err := io.Copy(w, f)
+					if err != nil {
+						s.log.Error("failed to copy file to response: ", zap.Error(err))
+					}
+				})).ServeHTTP(w, r)
 				return
 			}
-
-			cf, err := s.compressContent(fp, f)
-			if err != nil {
-				s.log.Error("failed to compress content", zap.Error(err))
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
-			}
-			err = f.Close()
-			if err != nil {
-				s.log.Error("failed to close file", zap.Error(err))
-			}
-			f = cf
-			// No new defer to close needed for cf. f is already closed, previous defer exist
-			w.Header().Set("Content-Encoding", "gzip")
 		}
 
 		// we passed all checks - serve the file
 		http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
 	})
-}
-
-func (s *Plugin) createCompressedFile(originalFile http.File, compressedPath string) error {
-	// Prevent path traversal
-	if !strings.HasPrefix(compressedPath, "/") {
-		compressedPath = "/" + compressedPath
-	}
-	cleanPath := path.Clean(compressedPath)
-	if !strings.HasPrefix(cleanPath, "/") {
-		return fmt.Errorf("invalid path")
-	}
-
-	s.cacheMutex.Lock()
-	defer s.cacheMutex.Unlock()
-
-	// We check again to avoid a race between threads.
-	if _, err := os.Stat(compressedPath); err == nil {
-		return nil
-	}
-
-	tempFile, err := os.CreateTemp(s.cfg.Dir, "gzip-*.tmp")
-	if err != nil {
-		return err
-	}
-
-	tempName := tempFile.Name()
-
-	// Limit the size of compressed files
-	maxSize := int64(s.gzipMaxFileSize * 1024 * 1024)
-	limitedReader := io.LimitReader(originalFile, maxSize)
-	gz := gzip.NewWriter(tempFile)
-
-	defer func() {
-		err = tempFile.Close()
-		if err != nil {
-			s.log.Error("failed to close file", zap.Error(err))
-		}
-
-		err = gz.Close()
-		if err != nil {
-			s.log.Error("failed to close file", zap.Error(err))
-		}
-	}()
-
-	_, err = io.Copy(gz, limitedReader)
-	if err != nil {
-		return err
-	}
-
-	// Atomically rename the temp file to the final compressed file
-	return os.Rename(tempName, s.cfg.Dir+cleanPath)
-}
-
-func (s *Plugin) compressContent(originalFilePath string, originalFile http.File) (http.File, error) {
-	compressedFilePath := s.cfg.Dir + originalFilePath + ".gz"
-
-	if _, err := os.Stat(compressedFilePath); os.IsNotExist(err) {
-		s.log.Debug("Compressed file does not exist, creating it: ", zap.String("path", compressedFilePath))
-		if err := s.createCompressedFile(originalFile, compressedFilePath); err != nil {
-			s.log.Debug("Error creating compressed file: ", zap.Error(err))
-			return nil, err
-		}
-	} else {
-		s.log.Debug("GZ file already exists, skipping compression")
-	}
-
-	compressedFile, err := s.root.Open(compressedFilePath)
-	if err != nil {
-		s.log.Debug("Unable to open compressed file: ", zap.Error(err))
-		return nil, err
-	}
-
-	return compressedFile, nil
 }
 
 func bytesToStr(data []byte) string {
