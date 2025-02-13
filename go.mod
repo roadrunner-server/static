@@ -5,6 +5,7 @@ go 1.24
 toolchain go1.24.0
 
 require (
+	github.com/klauspost/compress v1.17.11
 	github.com/roadrunner-server/context v1.0.2
 	github.com/roadrunner-server/errors v1.4.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0

@@ -31,6 +31,9 @@ type Config struct {
 
 	// Response headers to add to every static.
 	Response map[string]string `mapstructure:"response"`
+
+	// GzipEnabled determines if gzip compression is enabled for serving static files.
+	GzipEnabled bool `mapstructure:"gzip_enabled"`
 }
 
 // Valid returns nil if config is valid.
