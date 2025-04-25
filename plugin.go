@@ -81,7 +81,7 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 	s.root = http.Dir(s.cfg.Dir)
 
 	// init forbidden
-	for i := 0; i < len(s.cfg.Forbid); i++ {
+	for i := range s.cfg.Forbid {
 		// skip empty lines
 		if s.cfg.Forbid[i] == "" {
 			continue
@@ -90,7 +90,7 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 	}
 
 	// init allowed
-	for i := 0; i < len(s.cfg.Allow); i++ {
+	for i := range s.cfg.Allow {
 		// skip empty lines
 		if s.cfg.Allow[i] == "" {
 			continue
