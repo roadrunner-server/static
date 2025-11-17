@@ -14,31 +14,27 @@ var weakPrefix = []byte(`W/`) //nolint:gochecknoglobals
 // CRC32 table, constant
 var crc32q = crc32.MakeTable(0x48D90782) //nolint:gochecknoglobals
 
-// SetEtag sets etag for the file
-func SetEtag(weak bool, f http.File, name string, w http.ResponseWriter) {
+func calculateEtag(weak bool, f http.File, name string) string {
 	// preallocate
 	calculatedEtag := make([]byte, 0, 64)
 
-	// write weak
 	if weak {
 		calculatedEtag = append(calculatedEtag, weakPrefix...)
 		calculatedEtag = append(calculatedEtag, '"')
 		calculatedEtag = appendUint(calculatedEtag, crc32.Checksum(strToBytes(name), crc32q))
 		calculatedEtag = append(calculatedEtag, '"')
-
-		w.Header().Set(etag, bytesToStr(calculatedEtag))
-		return
+		return bytesToStr(calculatedEtag)
 	}
 
 	// read the file content
 	body, err := io.ReadAll(f)
 	if err != nil {
-		return
+		return bytesToStr(calculatedEtag)
 	}
 
 	// skip for 0 body
 	if len(body) == 0 {
-		return
+		return bytesToStr(calculatedEtag)
 	}
 
 	calculatedEtag = append(calculatedEtag, '"')
@@ -47,7 +43,12 @@ func SetEtag(weak bool, f http.File, name string, w http.ResponseWriter) {
 	calculatedEtag = appendUint(calculatedEtag, crc32.Checksum(body, crc32q))
 	calculatedEtag = append(calculatedEtag, '"')
 
-	w.Header().Set(etag, bytesToStr(calculatedEtag))
+	return bytesToStr(calculatedEtag)
+}
+
+// SetEtag sets etag for the file
+func SetEtag(w http.ResponseWriter, calculatedEtag string) {
+	w.Header().Set(etag, calculatedEtag)
 }
 
 // appendUint appends n to dst and returns the extended dst.
