@@ -1,6 +1,7 @@
 package static
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"path"
@@ -118,12 +119,13 @@ func (s *Plugin) Name() string {
 func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,gocyclo
 	// Define the http.HandlerFunc
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var span trace.Span
 		if val, ok := r.Context().Value(rrcontext.OtelTracerNameKey).(string); ok {
 			tp := trace.SpanFromContext(r.Context()).TracerProvider()
-			ctx, span := tp.Tracer(val, trace.WithSchemaURL(semconv.SchemaURL),
+			var ctx context.Context
+			ctx, span = tp.Tracer(val, trace.WithSchemaURL(semconv.SchemaURL),
 				trace.WithInstrumentationVersion(otelhttp.Version)).
-				Start(r.Context(), PluginName, trace.WithSpanKind(trace.SpanKindServer))
-			defer span.End()
+				Start(r.Context(), PluginName, trace.WithSpanKind(trace.SpanKindInternal))
 
 			// inject
 			s.prop.Inject(ctx, propagation.HeaderCarrier(r.Header))
@@ -135,6 +137,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		// https://lgtm.com/rules/1510366186013/
 		if strings.Contains(r.URL.Path, "..") {
 			w.WriteHeader(http.StatusForbidden)
+			endSpan(span)
 			return
 		}
 
@@ -146,6 +149,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 
 		// files w/o extensions are not allowed
 		if ext == "" {
+			endSpan(span)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -155,6 +159,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 			ext = strings.ReplaceAll(ext, "\n", "")
 			ext = strings.ReplaceAll(ext, "\r", "")
 			s.log.Debug("file extension is forbidden", zap.String("ext", ext))
+			endSpan(span)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -164,6 +169,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		if len(s.allowedExtensions) > 0 {
 			// not found in allowed
 			if _, ok := s.allowedExtensions[ext]; !ok {
+				endSpan(span)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -178,17 +184,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 			// else no such file, show error in logs only in debug mode
 			s.log.Debug("no such file or directory", zap.Error(err))
 			// pass request to the worker
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// at high confidence here should not be an error
-		// because we stat-ed the path previously and know, that that is file (not a dir), and it exists
-		finfo, err := f.Stat()
-		if err != nil {
-			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
-			// pass request to the worker
+			endSpan(span)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -200,10 +196,23 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 			}
 		}()
 
+		// at high confidence here should not be an error
+		// because we stat-ed the path previously and know, that that is file (not a dir), and it exists
+		finfo, err := f.Stat()
+		if err != nil {
+			// else no such file, show error in logs only in debug mode
+			s.log.Debug("no such file or directory", zap.Error(err))
+			// pass request to the worker
+			endSpan(span)
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// if provided path to the dir, do not serve the dir, but pass the request to the worker
 		if finfo.IsDir() {
-			s.log.Debug("possible path to dir provided")
+			s.log.Warn("path to dir provided, not serving dir", zap.String("path", fp))
 			// pass request to the worker
+			endSpan(span)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -227,7 +236,15 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 
 		// we passed all checks - serve the file
 		http.ServeContent(w, r, finfo.Name(), finfo.ModTime(), f)
+		endSpan(span)
 	})
+}
+
+// endSpan ends the span if it is not nil.
+func endSpan(span trace.Span) {
+	if span != nil {
+		span.End()
+	}
 }
 
 func bytesToStr(data []byte) string {

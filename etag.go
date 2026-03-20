@@ -59,11 +59,11 @@ func appendUint(dst []byte, n uint32) []byte {
 	for n >= 10 {
 		i--
 		q = n / 10
-		buf[i] = '0' + byte(n-q*10)
+		buf[i] = '0' + byte((n-q*10)&0xF) // n-q*10 is always 0-9 (single decimal digit), mask guarantees no overflow
 		n = q
 	}
 	i--
-	buf[i] = '0' + byte(n)
+	buf[i] = '0' + byte(n&0xF) // n is always 0-9 at this point, mask guarantees no overflow
 
 	dst = append(dst, buf[i:]...)
 	return dst
