@@ -98,7 +98,7 @@ http:
 		handler.ServeHTTP(rec, req)
 
 		assert.True(t, nextCalled.Load(), "next handler should be called for forbidden .js file")
-		assert.Greater(t, oLogger.FilterMessageSnippet("forbidden").Len(), 0,
+		assert.Greater(t, oLogger.FilterMessageSnippet("extension is forbidden").Len(), 0,
 			"should log debug message about forbidden extension")
 	})
 
@@ -216,6 +216,35 @@ http:
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "test-value", rec.Header().Get("X-Custom"))
+	})
+
+	t.Run("custom_request_headers", func(t *testing.T) {
+		cfg := newTestConfig(t, `
+version: "3"
+http:
+  static:
+    dir: "`+dir+`"
+    request:
+      X-Request-ID: "static-asset"
+`)
+
+		mockLog, _ := mocklogger.NewMockLogger(zapcore.DebugLevel)
+		p := &static.Plugin{}
+		require.NoError(t, p.Init(cfg, mockLog))
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+		handler := p.Middleware(next)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test.txt", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		// The middleware adds request headers to the original request before serving
+		assert.Equal(t, "static-asset", req.Header.Get("X-Request-ID"),
+			"request header should be injected by middleware")
 	})
 
 	t.Run("etag_determinism", func(t *testing.T) {
@@ -341,7 +370,7 @@ http:
 		handler.ServeHTTP(rec, req)
 
 		assert.True(t, nextCalled.Load(), "next handler should be called when path is a directory")
-		assert.Greater(t, oLogger.FilterMessageSnippet("dir provided").Len(), 0,
+		assert.Greater(t, oLogger.FilterMessageSnippet("path to dir provided").Len(), 0,
 			"should log warn message about directory access")
 	})
 }
