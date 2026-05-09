@@ -1,6 +1,7 @@
 package static
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,8 +14,6 @@ import (
 	"github.com/roadrunner-server/static/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
-
 	mocklogger "tests/mock"
 )
 
@@ -52,7 +51,7 @@ http:
       - ".js"
 `)
 
-	mockLog, oLogger := mocklogger.NewMockLogger(zapcore.DebugLevel)
+	mockLog, oLogger := mocklogger.NewMockLogger(slog.LevelDebug)
 
 	p := &static.Plugin{}
 	require.NoError(t, p.Init(cfg, mockLog))
@@ -140,7 +139,7 @@ http:
     weak: false
 `)
 
-		mockLog, _ := mocklogger.NewMockLogger(zapcore.DebugLevel)
+		mockLog, _ := mocklogger.NewMockLogger(slog.LevelDebug)
 		p := &static.Plugin{}
 		require.NoError(t, p.Init(cfg, mockLog))
 
@@ -171,7 +170,7 @@ http:
     weak: true
 `)
 
-		mockLog, _ := mocklogger.NewMockLogger(zapcore.DebugLevel)
+		mockLog, _ := mocklogger.NewMockLogger(slog.LevelDebug)
 		p := &static.Plugin{}
 		require.NoError(t, p.Init(cfg, mockLog))
 
@@ -201,7 +200,7 @@ http:
       X-Custom: "test-value"
 `)
 
-		mockLog, _ := mocklogger.NewMockLogger(zapcore.DebugLevel)
+		mockLog, _ := mocklogger.NewMockLogger(slog.LevelDebug)
 		p := &static.Plugin{}
 		require.NoError(t, p.Init(cfg, mockLog))
 
@@ -228,7 +227,7 @@ http:
       X-Request-ID: "static-asset"
 `)
 
-		mockLog, _ := mocklogger.NewMockLogger(zapcore.DebugLevel)
+		mockLog, _ := mocklogger.NewMockLogger(slog.LevelDebug)
 		p := &static.Plugin{}
 		require.NoError(t, p.Init(cfg, mockLog))
 
@@ -257,7 +256,7 @@ http:
     weak: false
 `)
 
-		mockLog, _ := mocklogger.NewMockLogger(zapcore.DebugLevel)
+		mockLog, _ := mocklogger.NewMockLogger(slog.LevelDebug)
 		p := &static.Plugin{}
 		require.NoError(t, p.Init(cfg, mockLog))
 
@@ -299,7 +298,7 @@ http:
       - ".txt"
 `)
 
-	mockLog, oLogger := mocklogger.NewMockLogger(zapcore.DebugLevel)
+	mockLog, oLogger := mocklogger.NewMockLogger(slog.LevelDebug)
 
 	p := &static.Plugin{}
 	require.NoError(t, p.Init(cfg, mockLog))

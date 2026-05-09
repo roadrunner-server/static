@@ -1,23 +1,22 @@
 package mocklogger
 
 import (
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"log/slog"
 )
 
 // MockLogger implements the static.Logger interface for testing.
 type MockLogger struct {
-	log *zap.Logger
+	log *slog.Logger
 }
 
-// NewMockLogger creates a MockLogger backed by an in-memory observed core.
+// NewMockLogger creates a MockLogger backed by an in-memory observer handler.
 // Returns the logger and an ObservedLogs for test assertions.
-func NewMockLogger(enab zapcore.LevelEnabler) (*MockLogger, *ObservedLogs) {
-	core, logs := New(enab)
-	return &MockLogger{log: zap.New(core, zap.Development())}, logs
+func NewMockLogger(level slog.Level) (*MockLogger, *ObservedLogs) {
+	handler, logs := NewObserverHandler(level)
+	return &MockLogger{log: slog.New(handler)}, logs
 }
 
-// NamedLogger returns the underlying zap.Logger, satisfying static.Logger.
-func (m *MockLogger) NamedLogger(_ string) *zap.Logger {
+// NamedLogger returns the underlying *slog.Logger, satisfying static.Logger.
+func (m *MockLogger) NamedLogger(_ string) *slog.Logger {
 	return m.log
 }
