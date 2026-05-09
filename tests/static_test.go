@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/roadrunner-server/config/v5"
+	"github.com/roadrunner-server/config/v6"
 	"github.com/roadrunner-server/static/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

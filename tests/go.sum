@@ -29,8 +29,8 @@ github.com/pelletier/go-toml/v2 v2.3.1 h1:MYEvvGnQjeNkRF1qUuGolNtNExTDwct51yp7ol
 github.com/pelletier/go-toml/v2 v2.3.1/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/roadrunner-server/config/v5 v5.1.9 h1:ReWwts/prEvuC4yVJ0BRDmY5sxw/1c+hGTSdJ71hIQU=
-github.com/roadrunner-server/config/v5 v5.1.9/go.mod h1:R6YyTWahW61tWHOI2BfdkQU/0Zc/2d6/JbJ/KEvq8F8=
+github.com/roadrunner-server/config/v6 v6.0.0-beta.3 h1:G0EUzJ6Yw4UnleM6BhnOBbYPXKDHRmCJiGhC3nXDBwI=
+github.com/roadrunner-server/config/v6 v6.0.0-beta.3/go.mod h1:eIB+c29njpcKokXrxe483FbQOBSTNGvU3hhC6W/qYSU=
 github.com/roadrunner-server/context v1.3.0 h1:iyTXVORhPU2/26z7kdzEaggwG5P8yhIKUDLiePjylFQ=
 github.com/roadrunner-server/context v1.3.0/go.mod h1:KPAzAlnErXekQazW9t4h55U1S42Q2bk0WCaPQrezJw4=
 github.com/roadrunner-server/errors v1.5.0 h1:unG7LKIZrSzkCCF3YLRLA5VyqE0KKomofXVJUXJe00g=
