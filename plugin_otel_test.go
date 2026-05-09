@@ -2,6 +2,7 @@ package static
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
-	"go.uber.org/zap"
 )
 
 func TestMiddlewareSpanEndsBeforeNextHandler(t *testing.T) {
@@ -26,7 +26,7 @@ func TestMiddlewareSpanEndsBeforeNextHandler(t *testing.T) {
 
 	p := &Plugin{
 		cfg:                 &Config{Dir: dir},
-		log:                 zap.NewNop(),
+		log:                 slog.New(slog.DiscardHandler),
 		root:                http.Dir(dir),
 		allowedExtensions:   make(map[string]struct{}),
 		forbiddenExtensions: make(map[string]struct{}),
@@ -92,7 +92,7 @@ func TestMiddlewareSpanEndsAfterServingFile(t *testing.T) {
 
 	p := &Plugin{
 		cfg:                 &Config{Dir: dir},
-		log:                 zap.NewNop(),
+		log:                 slog.New(slog.DiscardHandler),
 		root:                http.Dir(dir),
 		allowedExtensions:   make(map[string]struct{}),
 		forbiddenExtensions: make(map[string]struct{}),

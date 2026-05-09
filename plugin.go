@@ -3,6 +3,7 @@ package static
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 // PluginName contains default service name.
@@ -32,14 +32,14 @@ type Configurer interface {
 }
 
 type Logger interface {
-	NamedLogger(name string) *zap.Logger
+	NamedLogger(name string) *slog.Logger
 }
 
 // Plugin serves static files. Potentially convert into middleware?
 type Plugin struct {
 	// server configuration (location, forbidden files etc)
 	cfg *Config
-	log *zap.Logger
+	log *slog.Logger
 
 	// root is initiated http directory
 	root http.Dir
@@ -158,7 +158,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		if _, ok := s.forbiddenExtensions[ext]; ok {
 			ext = strings.ReplaceAll(ext, "\n", "")
 			ext = strings.ReplaceAll(ext, "\r", "")
-			s.log.Debug("file extension is forbidden", zap.String("ext", ext))
+			s.log.Debug("file extension is forbidden", "ext", ext)
 			endSpan(span)
 			next.ServeHTTP(w, r)
 			return
@@ -182,7 +182,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		f, err := s.root.Open(fp)
 		if err != nil {
 			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
+			s.log.Debug("no such file or directory", "error", err)
 			// pass request to the worker
 			endSpan(span)
 			next.ServeHTTP(w, r)
@@ -192,7 +192,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		defer func() {
 			err = f.Close()
 			if err != nil {
-				s.log.Error("file close error", zap.Error(err))
+				s.log.Error("file close error", "error", err)
 			}
 		}()
 
@@ -201,7 +201,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		finfo, err := f.Stat()
 		if err != nil {
 			// else no such file, show error in logs only in debug mode
-			s.log.Debug("no such file or directory", zap.Error(err))
+			s.log.Debug("no such file or directory", "error", err)
 			// pass request to the worker
 			endSpan(span)
 			next.ServeHTTP(w, r)
@@ -210,7 +210,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 
 		// if provided path to the dir, do not serve the dir, but pass the request to the worker
 		if finfo.IsDir() {
-			s.log.Warn("path to dir provided, not serving dir", zap.String("path", fp))
+			s.log.Warn("path to dir provided, not serving dir", "path", fp)
 			// pass request to the worker
 			endSpan(span)
 			next.ServeHTTP(w, r)
