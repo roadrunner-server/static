@@ -2,7 +2,6 @@ package static
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"path"
@@ -22,7 +21,11 @@ import (
 const (
 	PluginName     = "static"
 	RootPluginName = "http"
+	cfgKey         = RootPluginName + "." + PluginName
 )
+
+// pathSanitizer strips log-injection characters from URL paths.
+var pathSanitizer = strings.NewReplacer("\n", "", "\r", "") //nolint:gochecknoglobals
 
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
@@ -60,11 +63,11 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 	}
 
 	// http.static
-	if !cfg.Has(fmt.Sprintf("%s.%s", RootPluginName, PluginName)) {
+	if !cfg.Has(cfgKey) {
 		return errors.E(op, errors.Disabled)
 	}
 
-	err := cfg.UnmarshalKey(fmt.Sprintf("%s.%s", RootPluginName, PluginName), &s.cfg)
+	err := cfg.UnmarshalKey(cfgKey, &s.cfg)
 	if err != nil {
 		return errors.E(op, errors.Disabled, err)
 	}
@@ -82,21 +85,21 @@ func (s *Plugin) Init(cfg Configurer, log Logger) error {
 	s.root = http.Dir(s.cfg.Dir)
 
 	// init forbidden
-	for i := range s.cfg.Forbid {
+	for _, ext := range s.cfg.Forbid {
 		// skip empty lines
-		if s.cfg.Forbid[i] == "" {
+		if ext == "" {
 			continue
 		}
-		s.forbiddenExtensions[s.cfg.Forbid[i]] = struct{}{}
+		s.forbiddenExtensions[ext] = struct{}{}
 	}
 
 	// init allowed
-	for i := range s.cfg.Allow {
+	for _, ext := range s.cfg.Allow {
 		// skip empty lines
-		if s.cfg.Allow[i] == "" {
+		if ext == "" {
 			continue
 		}
-		s.allowedExtensions[s.cfg.Allow[i]] = struct{}{}
+		s.allowedExtensions[ext] = struct{}{}
 	}
 
 	// check if any forbidden items presented in the allowed
@@ -142,9 +145,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		}
 
 		// first - create a proper file path
-		fp := r.URL.Path
-		fp = strings.ReplaceAll(fp, "\n", "")
-		fp = strings.ReplaceAll(fp, "\r", "")
+		fp := pathSanitizer.Replace(r.URL.Path)
 		ext := strings.ToLower(path.Ext(fp))
 
 		// files w/o extensions are not allowed
@@ -156,8 +157,6 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 
 		// check that file extension in the forbidden list
 		if _, ok := s.forbiddenExtensions[ext]; ok {
-			ext = strings.ReplaceAll(ext, "\n", "")
-			ext = strings.ReplaceAll(ext, "\r", "")
 			s.log.Debug("file extension is forbidden", "ext", ext)
 			endSpan(span)
 			next.ServeHTTP(w, r)
