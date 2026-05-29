@@ -24,9 +24,6 @@ const (
 	cfgKey         = RootPluginName + "." + PluginName
 )
 
-// pathSanitizer strips log-injection characters from URL paths.
-var pathSanitizer = strings.NewReplacer("\n", "", "\r", "") //nolint:gochecknoglobals
-
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
 	UnmarshalKey(name string, out any) error
@@ -145,7 +142,7 @@ func (s *Plugin) Middleware(next http.Handler) http.Handler { //nolint:gocognit,
 		}
 
 		// first - create a proper file path
-		fp := pathSanitizer.Replace(r.URL.Path)
+		fp := strings.ReplaceAll(strings.ReplaceAll(r.URL.Path, "\n", ""), "\r", "")
 		ext := strings.ToLower(path.Ext(fp))
 
 		// files w/o extensions are not allowed
