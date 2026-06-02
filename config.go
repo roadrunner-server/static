@@ -1,9 +1,11 @@
 package static
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 
-	"github.com/roadrunner-server/errors"
+	rrerrors "github.com/roadrunner-server/errors"
 )
 
 // Config describes file location and controls access to them.
@@ -35,18 +37,18 @@ type Config struct {
 
 // Valid returns nil if config is valid.
 func (c *Config) Valid() error {
-	const op = errors.Op("static_plugin_valid")
+	const op = rrerrors.Op("static_plugin_valid")
 	st, err := os.Stat(c.Dir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return errors.E(op, errors.Errorf("root directory '%s' does not exists", c.Dir))
+		if errors.Is(err, fs.ErrNotExist) {
+			return rrerrors.E(op, rrerrors.Errorf("root directory '%s' does not exists", c.Dir))
 		}
 
 		return err
 	}
 
 	if !st.IsDir() {
-		return errors.E(op, errors.Errorf("invalid root directory '%s'", c.Dir))
+		return rrerrors.E(op, rrerrors.Errorf("invalid root directory '%s'", c.Dir))
 	}
 
 	return nil

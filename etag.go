@@ -4,6 +4,7 @@ import (
 	"hash/crc32"
 	"io"
 	"net/http"
+	"strconv"
 )
 
 const etag string = "Etag"
@@ -23,7 +24,7 @@ func SetEtag(weak bool, f http.File, name string, w http.ResponseWriter) {
 	if weak {
 		calculatedEtag = append(calculatedEtag, weakPrefix...)
 		calculatedEtag = append(calculatedEtag, '"')
-		calculatedEtag = appendUint(calculatedEtag, crc32.Checksum(strToBytes(name), crc32q))
+		calculatedEtag = strconv.AppendUint(calculatedEtag, uint64(crc32.Checksum(strToBytes(name), crc32q)), 10)
 		calculatedEtag = append(calculatedEtag, '"')
 
 		w.Header().Set(etag, bytesToStr(calculatedEtag))
@@ -42,29 +43,10 @@ func SetEtag(weak bool, f http.File, name string, w http.ResponseWriter) {
 	}
 
 	calculatedEtag = append(calculatedEtag, '"')
-	calculatedEtag = appendUint(calculatedEtag, uint32(len(body))) //nolint:gosec
+	calculatedEtag = strconv.AppendUint(calculatedEtag, uint64(len(body)), 10)
 	calculatedEtag = append(calculatedEtag, '-')
-	calculatedEtag = appendUint(calculatedEtag, crc32.Checksum(body, crc32q))
+	calculatedEtag = strconv.AppendUint(calculatedEtag, uint64(crc32.Checksum(body, crc32q)), 10)
 	calculatedEtag = append(calculatedEtag, '"')
 
 	w.Header().Set(etag, bytesToStr(calculatedEtag))
-}
-
-// appendUint appends n to dst and returns the extended dst.
-func appendUint(dst []byte, n uint32) []byte {
-	var b [20]byte
-	buf := b[:]
-	i := len(buf)
-	var q uint32
-	for n >= 10 {
-		i--
-		q = n / 10
-		buf[i] = '0' + byte((n-q*10)&0xF) // n-q*10 is always 0-9 (single decimal digit), mask guarantees no overflow
-		n = q
-	}
-	i--
-	buf[i] = '0' + byte(n&0xF) // n is always 0-9 at this point, mask guarantees no overflow
-
-	dst = append(dst, buf[i:]...)
-	return dst
 }
