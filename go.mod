@@ -2,7 +2,7 @@ module github.com/roadrunner-server/static/v6
 
 go 1.26
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/roadrunner-server/context v1.3.0
