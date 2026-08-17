@@ -26,7 +26,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Init Go modules Cache # Docs: <https://git.io/JfAKn#go---modules>
         uses: actions/cache@v5
@@ -42,7 +42,7 @@ jobs:
         run: |
           mkdir -p ./coverage-ci
 
-          go test -timeout 10m -v -race -cover -failfast \
+          go test -timeout 10m -v -race -cover -tags=debug \
             -coverpkg=github.com/roadrunner-server/static/v6/... \
             -coverprofile=./coverage-ci/root.out \
             -covermode=atomic ./...
@@ -51,7 +51,7 @@ jobs:
         run: |
           cd tests
 
-          go test -timeout 10m -v -race -cover -failfast \
+          go test -timeout 10m -v -race -cover -tags=debug \
             -coverpkg=github.com/roadrunner-server/static/v6/... \
             -coverprofile=../coverage-ci/integration.out \
             -covermode=atomic ./...
@@ -70,7 +70,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download code coverage results
         uses: actions/download-artifact@v8
@@ -91,7 +91,7 @@ jobs:
           mv summary.filtered.txt summary.txt
 
       - name: Upload to codecov
-        uses: codecov/codecov-action@v6 # Docs: <https://github.com/codecov/codecov-action>
+        uses: codecov/codecov-action@v7 # Docs: <https://github.com/codecov/codecov-action>
         with:
           files: summary.txt
           fail_ci_if_error: false
