@@ -5,8 +5,8 @@ go 1.27
 toolchain go1.27.0
 
 require (
-	github.com/roadrunner-server/config/v6 v6.0.0-beta.3
-	github.com/roadrunner-server/static/v6 v6.0.0-beta.4
+	github.com/roadrunner-server/config/v6 v6.0.0-beta.4
+	github.com/roadrunner-server/static/v6 v6.0.0-beta.5
 	github.com/stretchr/testify v1.12.1
 )
 
