@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// LoggedEntry is a representation of a log record captured by the observer.
+// LoggedEntry holds one log record the observer captured.
 type LoggedEntry struct {
 	Level   slog.Level
 	Message string
@@ -41,8 +41,7 @@ func (o *ObservedLogs) All() []LoggedEntry {
 	return ret
 }
 
-// TakeAll returns a copy of all the observed logs, and truncates the observed
-// slice.
+// TakeAll returns a copy of all the observed logs and clears the observed slice.
 func (o *ObservedLogs) TakeAll() []LoggedEntry {
 	o.mu.Lock()
 	ret := o.logs
@@ -51,9 +50,7 @@ func (o *ObservedLogs) TakeAll() []LoggedEntry {
 	return ret
 }
 
-// AllUntimed returns a copy of all the observed logs, but overwrites the
-// observed timestamps with time.Time's zero value. This is useful when making
-// assertions in tests.
+// AllUntimed returns a copy of the observed logs with each timestamp set to time.Time's zero value.
 func (o *ObservedLogs) AllUntimed() []LoggedEntry {
 	ret := o.All()
 	for i := range ret {
@@ -76,7 +73,7 @@ func (o *ObservedLogs) FilterMessage(msg string) *ObservedLogs {
 	})
 }
 
-// FilterMessageSnippet filters entries to those that have a message containing the specified snippet.
+// FilterMessageSnippet filters entries whose message contains the given snippet.
 func (o *ObservedLogs) FilterMessageSnippet(snippet string) *ObservedLogs {
 	return o.Filter(func(e LoggedEntry) bool {
 		return strings.Contains(e.Message, snippet)
@@ -91,8 +88,7 @@ func (o *ObservedLogs) FilterAttrKey(key string) *ObservedLogs {
 	})
 }
 
-// FilterAttr filters entries to those that have the specified attribute key
-// AND value (compared with reflect.DeepEqual).
+// FilterAttr filters entries that have the given attribute key and value, compared with reflect.DeepEqual.
 func (o *ObservedLogs) FilterAttr(key string, value any) *ObservedLogs {
 	return o.Filter(func(e LoggedEntry) bool {
 		v, ok := e.Attrs[key]
@@ -100,8 +96,7 @@ func (o *ObservedLogs) FilterAttr(key string, value any) *ObservedLogs {
 	})
 }
 
-// Filter returns a copy of this ObservedLogs containing only those entries
-// for which the provided function returns true.
+// Filter returns a new ObservedLogs with only the entries for which the function returns true.
 func (o *ObservedLogs) Filter(keep func(LoggedEntry) bool) *ObservedLogs {
 	o.mu.RLock()
 	defer o.mu.RUnlock()
