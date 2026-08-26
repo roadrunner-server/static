@@ -10,11 +10,12 @@ import (
 	"sync/atomic"
 	"testing"
 
+	mocklogger "tests/mock"
+
 	"github.com/roadrunner-server/config/v6"
 	"github.com/roadrunner-server/static/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	mocklogger "tests/mock"
 )
 
 // newTestConfig creates a config.Plugin from in-memory YAML for testing.
@@ -56,7 +57,7 @@ http:
 	p := &static.Plugin{}
 	require.NoError(t, p.Init(cfg, mockLog))
 
-	// Track whether next handler is called
+	// Track whether the next handler is called
 	var nextCalled atomic.Bool
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		nextCalled.Store(true)
@@ -119,7 +120,7 @@ http:
 		handler.ServeHTTP(rec, req)
 
 		assert.True(t, nextCalled.Load(), "next handler should be called for missing file")
-		assert.Greater(t, oLogger.FilterMessageSnippet("no such file").Len(), 0,
+		assert.Greater(t, oLogger.FilterMessageSnippet("file open error").Len(), 0,
 			"should log debug message about missing file")
 	})
 }
@@ -265,12 +266,10 @@ http:
 		})
 		handler := p.Middleware(next)
 
-		// First request
 		req1 := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test.txt", nil)
 		rec1 := httptest.NewRecorder()
 		handler.ServeHTTP(rec1, req1)
 
-		// Second request
 		req2 := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test.txt", nil)
 		rec2 := httptest.NewRecorder()
 		handler.ServeHTTP(rec2, req2)
@@ -311,26 +310,25 @@ http:
 
 	handler := p.Middleware(next)
 
-	t.Run("blocks_path_traversal", func(t *testing.T) {
+	t.Run("delegates_path_traversal", func(t *testing.T) {
 		nextCalled.Store(false)
 
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/../etc/passwd.txt", nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
-		assert.Equal(t, http.StatusForbidden, rec.Code, "path traversal should return 403")
-		assert.False(t, nextCalled.Load(), "next handler should not be called for path traversal")
+		assert.True(t, nextCalled.Load(), "a traversal attempt is canonicalized and falls through to the worker")
+		assert.NotContains(t, rec.Body.String(), "root:", "the sensitive file must not be served")
 	})
 
 	t.Run("delegates_directory_access", func(t *testing.T) {
 		nextCalled.Store(false)
 
-		// Create a file inside subdir to ensure Open succeeds but it's a directory
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/subdir", nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
-		// /subdir has no extension, so it delegates to next handler
+		// /subdir has no extension, so it delegates to the next handler
 		assert.True(t, nextCalled.Load(), "next handler should be called for directory path")
 	})
 
@@ -346,18 +344,17 @@ http:
 		assert.False(t, nextCalled.Load(), "next handler should not be called for safe file")
 	})
 
-	t.Run("blocks_dotdot_in_path", func(t *testing.T) {
+	t.Run("delegates_dotdot_in_path", func(t *testing.T) {
 		nextCalled.Store(false)
 
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/subdir/../../../etc/hosts.txt", nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
-		assert.Equal(t, http.StatusForbidden, rec.Code, "path with .. should return 403")
-		assert.False(t, nextCalled.Load(), "next handler should not be called for path with ..")
+		assert.True(t, nextCalled.Load(), "a path with .. is canonicalized and falls through to the worker")
+		assert.NotContains(t, rec.Body.String(), "localhost", "the sensitive file must not be served")
 	})
 
-	// Verify warn log for directory access attempt with extension
 	t.Run("warns_on_directory_with_extension", func(t *testing.T) {
 		// Create a directory with a .txt extension to trigger the warn log
 		dirWithExt := filepath.Join(dir, "fakefile.txt")

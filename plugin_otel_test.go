@@ -49,7 +49,7 @@ func TestMiddlewareSpanEndsBeforeNextHandler(t *testing.T) {
 	// Set OtelTracerNameKey so the middleware activates its OTEL branch
 	ctx = context.WithValue(ctx, rrcontext.OtelTracerNameKey, "test-tracer")
 
-	// Request without file extension — delegates to next handler
+	// a request without a file extension delegates to the next handler
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/noext", nil)
 	rec := httptest.NewRecorder()
 

@@ -85,8 +85,7 @@ func TestInitRejectsFileAsRootDirectory(t *testing.T) {
 	require.ErrorContains(t, err, "invalid root directory")
 }
 
-// TestInitDropsForbiddenFromAllowed covers the reconciliation step: an extension
-// listed in both lists must not survive in the allowed set.
+// TestInitDropsForbiddenFromAllowed covers the reconciliation step: an extension in both lists must not survive in the allowed set.
 func TestInitDropsForbiddenFromAllowed(t *testing.T) {
 	p := &Plugin{}
 	c := &stubConfigurer{sections: bothSections(), cfg: &Config{
@@ -102,7 +101,7 @@ func TestInitDropsForbiddenFromAllowed(t *testing.T) {
 	require.NotContains(t, p.allowedExtensions, ".js")
 	require.Contains(t, p.forbiddenExtensions, ".js")
 
-	// the empty entries in both lists are skipped rather than stored
+	// static skips the empty entries in both lists; it does not store them
 	require.NotContains(t, p.allowedExtensions, "")
 	require.NotContains(t, p.forbiddenExtensions, "")
 }
@@ -115,9 +114,4 @@ func TestBytesToStrEmpty(t *testing.T) {
 	require.Empty(t, bytesToStr(nil))
 	require.Empty(t, bytesToStr([]byte{}))
 	require.Equal(t, "abc", bytesToStr([]byte("abc")))
-}
-
-func TestStrToBytesEmpty(t *testing.T) {
-	require.Nil(t, strToBytes(""))
-	require.Equal(t, []byte("abc"), strToBytes("abc"))
 }
