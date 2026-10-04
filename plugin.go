@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	rrcontext "github.com/roadrunner-server/context"
 	rrerrors "github.com/roadrunner-server/errors"
@@ -425,12 +424,4 @@ func endSpan(span trace.Span) {
 	if span != nil {
 		span.End()
 	}
-}
-
-func bytesToStr(data []byte) string {
-	if len(data) == 0 {
-		return ""
-	}
-
-	return unsafe.String(unsafe.SliceData(data), len(data))
 }

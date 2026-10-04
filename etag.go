@@ -24,7 +24,7 @@ func strongEtag(body []byte) string {
 	buf = strconv.AppendUint(buf, uint64(sum), 10)
 	buf = append(buf, '"')
 
-	return bytesToStr(buf)
+	return string(buf)
 }
 
 // weakEtag derives a validator from file metadata.
@@ -38,5 +38,5 @@ func weakEtag(size int64, mtimeSec int64, mtimeNsec int32) string {
 	buf = strconv.AppendInt(buf, int64(mtimeNsec), 10)
 	buf = append(buf, '"')
 
-	return bytesToStr(buf)
+	return string(buf)
 }
