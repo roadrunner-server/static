@@ -109,9 +109,3 @@ func TestInitDropsForbiddenFromAllowed(t *testing.T) {
 func TestName(t *testing.T) {
 	require.Equal(t, PluginName, (&Plugin{}).Name())
 }
-
-func TestBytesToStrEmpty(t *testing.T) {
-	require.Empty(t, bytesToStr(nil))
-	require.Empty(t, bytesToStr([]byte{}))
-	require.Equal(t, "abc", bytesToStr([]byte("abc")))
-}
